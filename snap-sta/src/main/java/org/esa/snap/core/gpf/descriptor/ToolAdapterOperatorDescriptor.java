@@ -31,8 +31,14 @@ import org.esa.snap.core.util.StringUtils;
 import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.utils.PrivilegedAccessor;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -50,7 +56,7 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
 
     public static final String SOURCE_PACKAGE = "package";
     public static final String SOURCE_USER = "user";
-    public static final Class[] annotatedClasses = new Class[] {
+    public static final Class[] annotatedClasses = new Class[]{
             ToolAdapterOperatorDescriptor.class, TemplateParameterDescriptor.class,
             SystemVariable.class, SystemDependentVariable.class, TemplateFile.class
     };
@@ -99,7 +105,7 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
     private TemplateEngine templateEngine;
 
     ToolAdapterOperatorDescriptor() {
-        this.sourceProductDescriptors = new DefaultSourceProductDescriptor[] { new DefaultSourceProductDescriptor() };
+        this.sourceProductDescriptors = new DefaultSourceProductDescriptor[]{new DefaultSourceProductDescriptor()};
         try {
             PrivilegedAccessor.setValue(this.sourceProductDescriptors[0], "name", ToolAdapterConstants.TOOL_SOURCE_PRODUCT_ID);
         } catch (Exception e) {
@@ -116,7 +122,8 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
         this.operatorClass = operatorClass;
     }
 
-    public ToolAdapterOperatorDescriptor(String name, Class<? extends Operator> operatorClass, String alias, String label, String version, String description, String authors, String copyright, String menuLocation) {
+    public ToolAdapterOperatorDescriptor(String name, Class<? extends Operator> operatorClass, String alias, String label, String version,
+                                         String description, String authors, String copyright, String menuLocation) {
         this(name, operatorClass);
         this.alias = alias;
         this.label = label;
@@ -129,10 +136,12 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
 
     /**
      * Copy constructor
-     * @param obj   The descriptor to be copied
+     *
+     * @param obj The descriptor to be copied
      */
     public ToolAdapterOperatorDescriptor(ToolAdapterOperatorDescriptor obj) {
-        this(obj.getName(), obj.getOperatorClass(), obj.getAlias(), obj.getLabel(), obj.getVersion(), obj.getDescription(), obj.getAuthors(), obj.getCopyright(), obj.getMenuLocation());
+        this(obj.getName(), obj.getOperatorClass(), obj.getAlias(), obj.getLabel(), obj.getVersion(), obj.getDescription(), obj.getAuthors(),
+             obj.getCopyright(), obj.getMenuLocation());
         this.internal = obj.isInternal();
         this.autoWriteSuppressed = obj.isAutoWriteDisabled();
 
@@ -166,8 +175,8 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
         List<SystemVariable> variableList = obj.getVariables();
         if (variableList != null) {
             this.variables.addAll(variableList.stream()
-                    .filter(systemVariable -> systemVariable != null)
-                    .map(SystemVariable::createCopy).collect(Collectors.toList()));
+                                          .filter(systemVariable -> systemVariable != null)
+                                          .map(SystemVariable::createCopy).collect(Collectors.toList()));
         }
 
         this.sourceProductDescriptors = new DefaultSourceProductDescriptor[obj.getSourceProductDescriptors().length];
@@ -178,8 +187,10 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
         this.sourceProductsDescriptor = (DefaultSourceProductsDescriptor) obj.getSourceProductsDescriptor();
 
         this.toolParameterDescriptors.addAll(obj.getToolParameterDescriptors().stream().map(parameter -> !parameter.isTemplateParameter() ?
-                new ToolParameterDescriptor(parameter) :
-                new TemplateParameterDescriptor((TemplateParameterDescriptor) parameter)).collect(Collectors.toList()));
+                                                                                                         new ToolParameterDescriptor(parameter) :
+                                                                                                         new TemplateParameterDescriptor(
+                                                                                                                 (TemplateParameterDescriptor) parameter)).collect(
+                Collectors.toList()));
 
         this.targetProductDescriptor = (DefaultTargetProductDescriptor) obj.getTargetProductDescriptor();
 
@@ -193,9 +204,10 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
 
     /**
      * Variant of the copy constructor
-     * @param obj       The descriptor to be copied
-     * @param newName   The new name of the operator
-     * @param newAlias  The new alias of the operator
+     *
+     * @param obj      The descriptor to be copied
+     * @param newName  The new name of the operator
+     * @param newAlias The new alias of the operator
      */
     public ToolAdapterOperatorDescriptor(ToolAdapterOperatorDescriptor obj, String newName, String newAlias) {
         this(obj);
@@ -205,7 +217,8 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
 
     /**
      * Removes the given parameter descriptor from the internal parameter descriptor list
-     * @param descriptor    The descriptor to be removed
+     *
+     * @param descriptor The descriptor to be removed
      */
     public void removeParamDescriptor(ToolParameterDescriptor descriptor) {
         this.toolParameterDescriptors.remove(descriptor);
@@ -213,20 +226,22 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
 
     /**
      * Removes the given descriptors from the internal parameter descriptor list
-     * @param descriptors    The list of descriptors to be removed
+     *
+     * @param descriptors The list of descriptors to be removed
      */
     public void removeParamDescriptors(List<ToolParameterDescriptor> descriptors) {
-        if(descriptors != null && descriptors.size() > 0) {
+        if (descriptors != null && descriptors.size() > 0) {
             descriptors.forEach(this.toolParameterDescriptors::remove);
         }
     }
 
     /**
      * Gets all the parameter descriptors
-     * @return  The list of parameter descriptors
+     *
+     * @return The list of parameter descriptors
      */
     public List<ToolParameterDescriptor> getToolParameterDescriptors() {
-        if(this.toolParameterDescriptors == null){
+        if (this.toolParameterDescriptors == null) {
             this.toolParameterDescriptors = new ArrayList<>();
         }
         return this.toolParameterDescriptors;
@@ -252,42 +267,49 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
     public void setAlias(String alias) {
         this.alias = alias;
     }
+
     /**
      * Setter for the Label field
      */
     public void setLabel(String label) {
         this.label = label;
     }
+
     /**
      * Setter for the Version field
      */
     public void seVersion(String version) {
         this.version = version;
     }
+
     /**
      * Setter for the Description field
      */
     public void setDescription(String description) {
         this.description = description;
     }
+
     /**
      * Setter for the Authors field
      */
     public void setAuthors(String authors) {
         this.authors = authors;
     }
+
     /**
      * Setter for the Copyright field
      */
     public void setCopyright(String copyright) {
         this.copyright = copyright;
     }
+
     /**
      * Setter for the Name field
      */
     public void setName(String name) {
         this.name = name;
     }
+
     /**
      * Setter for the operator class
      */
@@ -339,19 +361,29 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
     public String getDescription() {
         return description;
     }
+
     /**
      * Getter for the Menu Location field
      */
-    public String getMenuLocation() { return menuLocation; }
+    public String getMenuLocation() {
+        return menuLocation;
+    }
+
     /**
      * Setter for the Menu Location field
      */
-    public void setMenuLocation(String value) { menuLocation = value; }
+    public void setMenuLocation(String value) {
+        menuLocation = value;
+    }
+
     /**
      * Getter for the source of the descriptor.
      * The source can be either "package" (coming from a nbm package) or "user" (user-defined).
      */
-    public String getSource() { return source != null ? source : SOURCE_USER; }
+    public String getSource() {
+        return source != null ? source : SOURCE_USER;
+    }
+
     /**
      * Setter for the Source field.
      */
@@ -365,17 +397,23 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
     /**
      * Determines if the source of this descriptor is from a package or creadet/modified by user.
      */
-    public boolean isFromPackage() { return SOURCE_PACKAGE.equals(getSource()); }
+    public boolean isFromPackage() {
+        return SOURCE_PACKAGE.equals(getSource());
+    }
 
     /**
      * Determines if the tool would produce by itself the name of the output product.
      */
-    public boolean isHandlingOutputName() { return isHandlingOutputName; }
+    public boolean isHandlingOutputName() {
+        return isHandlingOutputName;
+    }
 
     /**
      * Setter for the isHandlingOutputName member.
      */
-    public void setHandlingOutputName(boolean value) { isHandlingOutputName = value; }
+    public void setHandlingOutputName(boolean value) {
+        isHandlingOutputName = value;
+    }
 
     @Override
     public Class<? extends Operator> getOperatorClass() {
@@ -408,6 +446,7 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
     public TargetProductDescriptor getTargetProductDescriptor() {
         return targetProductDescriptor;
     }
+
     /**
      * Getter for the Template File Location field
      */
@@ -415,6 +454,7 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
         //return this.template;
         return template;
     }
+
     /**
      * Setter for the Template File Location field
      */
@@ -427,24 +467,28 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
             this.template.associateWith(getTemplateEngine());
         }
     }
+
     /**
      * Getter for the Working Directory field
      */
     public File getWorkingDir() {
         return workingDir;
     }
+
     /**
      * Setter for the Working Directory field
      */
     public void setWorkingDir(File workingDir) {
         this.workingDir = workingDir;
     }
+
     /**
      * Getter for the Tool File Location field
      */
     public File getMainToolFileLocation() {
         return mainToolFileLocation;
     }
+
     /**
      * Setter for the Tool File Location field
      */
@@ -464,83 +508,110 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
         return expandedValue == null ? null : new File(expandedValue);*/
         return VariableResolver.newInstance(this).resolve(location);
     }
+
     /**
      * Setter for the Progress Pattern field. The pattern is a regular expression.
      */
-    public void setProgressPattern(String pattern) { this.progressPattern = pattern; }
+    public void setProgressPattern(String pattern) {
+        this.progressPattern = pattern;
+    }
+
     /**
      * Getter for the Progress Pattern field
      */
-    public String getProgressPattern() { return progressPattern; }
+    public String getProgressPattern() {
+        return progressPattern;
+    }
+
     /**
      * Setter for the Error Pattern field. The pattern is a regular expression.
      */
-    public void setErrorPattern(String pattern) { this.errorPattern = pattern; }
+    public void setErrorPattern(String pattern) {
+        this.errorPattern = pattern;
+    }
+
     /**
      * Getter for the Error Pattern field
      */
-    public String getErrorPattern() { return errorPattern; }
+    public String getErrorPattern() {
+        return errorPattern;
+    }
+
     /**
      * Setter for the Step progress Pattern field. The pattern is a regular expression.
      */
-    public void setStepPattern(String pattern) { this.stepPattern = pattern; }
+    public void setStepPattern(String pattern) {
+        this.stepPattern = pattern;
+    }
+
     /**
      * Getter for the Step progress Pattern field
      */
-    public String getStepPattern() { return this.stepPattern ; }
+    public String getStepPattern() {
+        return this.stepPattern;
+    }
+
     /**
      * Getter for the Pre-processing Writer field
      */
     public String getProcessingWriter() {
         return processingWriter;
     }
+
     /**
      * Setter for the Pre-processing Writer field
      */
     public void setProcessingWriter(String processingWriter) {
         this.processingWriter = processingWriter;
     }
+
     /**
      * Getter for the Write Before Processing field
      */
     public Boolean shouldWriteBeforeProcessing() {
         return writeForProcessing;
     }
+
     /**
      * Setter for the Write Before Processing field
      */
     public void writeBeforeProcessing(Boolean writeForProcessing) {
         this.writeForProcessing = writeForProcessing;
     }
+
     /**
      * Getter for the Pre-processing External Tool field
      */
     public String getPreprocessorExternalTool() {
         return preprocessorExternalTool;
     }
+
     /**
      * Setter for the Pre-processing External Tool field
      */
     public void setPreprocessorExternalTool(String preprocessorExternalTool) {
         this.preprocessorExternalTool = preprocessorExternalTool;
     }
+
     /**
      * Getter for the Has Pre-processing External Tool field
      */
     public Boolean getPreprocessTool() {
         return preprocessTool;
     }
+
     /**
      * Setter for the Has Pre-processing External Tool field
      */
     public void setPreprocessTool(Boolean preprocessTool) {
         this.preprocessTool = preprocessTool;
     }
+
     /**
      * Gets the list of user-defined system variables
      */
     public List<SystemVariable> getVariables() {
-        if(this.variables == null){
+        if (this.variables == null) {
             this.variables = new ArrayList<>();
         }
         return variables;
@@ -556,17 +627,17 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
     }
 
     /**
-     *  Returns the number of source products
+     * Returns the number of source products
      */
     public int getSourceProductCount() {
         return numSourceProducts;
     }
 
     /**
-     *  Sets the number of source products.
-     *  It re-dimensions internally the <code>sourceProductDescriptors</code> array.
-     *  This is useful in the execution dialog, because it dictates how many selectors should
-     *  be rendered.
+     * Sets the number of source products.
+     * It re-dimensions internally the <code>sourceProductDescriptors</code> array.
+     * This is useful in the execution dialog, because it dictates how many selectors should
+     * be rendered.
      */
     public void setSourceProductCount(int value) {
         numSourceProducts = value;
@@ -579,16 +650,19 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
             if (sourceProductDescriptors[i] == null) {
                 sourceProductDescriptors[i] = new DefaultSourceProductDescriptor();
                 try {
-                    PrivilegedAccessor.setValue(sourceProductDescriptors[i], "name", ToolAdapterConstants.TOOL_SOURCE_PRODUCT_ID + " " + String.valueOf(i+1));
+                    PrivilegedAccessor.setValue(sourceProductDescriptors[i], "name",
+                                                ToolAdapterConstants.TOOL_SOURCE_PRODUCT_ID + " " + String.valueOf(i + 1));
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
         }
     }
+
     /**
      * Adds a user-defined system variable
-     * @param variable  The variable to be added
+     *
+     * @param variable The variable to be added
      */
     public void addVariable(SystemVariable variable) {
         this.variables.add(variable);
@@ -649,6 +723,38 @@ public class ToolAdapterOperatorDescriptor implements OperatorDescriptor {
             } catch (IOException e1) {
                 throw new OperatorException(formatReadExceptionText(resourceName, e1), e1);
             }
+        }
+    }
+
+    /**
+     * Loads an operator descriptor from an XML document.
+     *
+     * @param filePath    The file containing a valid operator descriptor XML document.
+     * @param classLoader The class loader is used to load classed specified in the xml. For example the
+     *                    class defined by the {@code operatorClass} tag.
+     * @return A new operator descriptor.
+     */
+    public static ToolAdapterOperatorDescriptor fromXml(Path filePath, ClassLoader classLoader) throws OperatorException {
+        String resourceName = filePath.toString();
+        try {
+            try (Reader reader = Files.newBufferedReader(filePath)) {
+                return ToolAdapterOperatorDescriptor.fromXml(reader, resourceName, classLoader);
+            }
+        } catch (Exception e) {
+            throw new OperatorException(formatReadExceptionText(resourceName, e));
+            // cannot convert within a jar
+            // sen2three fails
+//            try {
+//                ToolAdapterIO.convertAdapter(filePath);
+//                String name = FileUtils.getFilenameWithoutExtension(filePath.getFileName().toString());
+//                logger.fine(String.format("Adapter %s has been automatically converted to the new format", name));
+//            } catch (IOException e1) {
+//                throw new OperatorException(formatReadExceptionText(resourceName, e), e);
+//            }
+//            try (Reader reader = Files.newBufferedReader(filePath)) {
+//                return ToolAdapterOperatorDescriptor.fromXml(reader, resourceName, classLoader);
+//            } catch (IOException e1) {
+//                throw new OperatorException(formatReadExceptionText(resourceName, e1), e1);
         }
     }
 
