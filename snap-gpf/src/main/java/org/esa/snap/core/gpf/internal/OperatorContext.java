@@ -161,8 +161,8 @@ public class OperatorContext {
         if (disableTileCache) {
             image.setTileCache(null);
         } else if (image.getTileCache() == null) {
-            image.setTileCache(getTileCache());
-            SystemUtils.LOG.finest(String.format("Tile cache assigned to %s", image));
+            image.setTileCache(new SingleTileCache());
+            SystemUtils.LOG.finest(String.format("SingleTile cache assigned to %s", image));
         }
     }
 

@@ -15,10 +15,25 @@
  */
 package org.esa.snap.core.gpf.monitor;
 
+import com.sun.media.jai.util.SunTileCache;
 import org.esa.snap.core.gpf.internal.OperatorImage;
+import org.esa.snap.core.image.RasterDataNodeOpImage;
+import org.esa.snap.core.image.VirtualBandOpImage;
 
+import javax.media.jai.CachedTile;
+import javax.media.jai.JAI;
+import javax.media.jai.TileCache;
+import java.awt.image.RenderedImage;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.Vector;
 import java.util.logging.Level;
 
 /**
@@ -86,6 +101,7 @@ public class TileComputationEventLogger extends TileComputationObserver {
         getLogger().log(Level.INFO, "Starting TileComputationPrinter");
     }
 
+    private static int counter = 0;
     @Override
     public void tileComputed(TileComputationEvent event) {
         TileEvent tileEvent = new TileEvent(event);
@@ -98,9 +114,23 @@ public class TileComputationEventLogger extends TileComputationObserver {
             }
         }
         if (newEvent) {
-            getLogger().log(Level.INFO, "Tile computed: " + message);
+//            getLogger().log(Level.INFO, "Tile computed: " + message);
         } else {
             getLogger().log(Level.WARNING, "Tile re-computed: " + message);
+        }
+        counter++;
+        if (counter % 300 == 0) {
+            TileCache tileCache = JAI.getDefaultInstance().getTileCache();
+            if (tileCache instanceof SunTileCache) {
+                SunTileCache sunTileCache = (SunTileCache) tileCache;
+                long cacheTileCount = sunTileCache.getCacheTileCount();
+                System.out.println("Tiles in Cache = " + cacheTileCount);
+                long memUsed = sunTileCache.getCacheMemoryUsed() / (1024 * 1024);
+                long memCapacity = sunTileCache.getMemoryCapacity() / (1024 * 1024);
+                System.out.printf("Memory used %d MB (capacity %d MB)%n", memUsed, memCapacity);
+                printCachedTiles(((Hashtable) sunTileCache.getCachedObject()).values());
+            }
+            System.out.println("=============================================================");
         }
     }
 
@@ -109,4 +139,60 @@ public class TileComputationEventLogger extends TileComputationObserver {
         recordedEventSet.clear();
         getLogger().log(Level.INFO, "Stopping TileComputationPrinter");
     }
+
+    private static void printCachedTiles(Collection<CachedTile> tiles) {
+           final Map<String, Long> numTiles = new HashMap<>(100);
+           final Map<String, Long> sizeTiles = new HashMap<>(100);
+           for (CachedTile sct : tiles) {
+               RenderedImage owner = sct.getOwner();
+               if (owner == null) {
+                   continue;
+               }
+               String name = owner.getClass().getSimpleName() + " " + getImageComment(owner);
+               increment(numTiles, name, 1);
+               increment(sizeTiles, name, sct.getTileSize());
+           }
+           List<Map.Entry<String, Long>> sortedBySize = new ArrayList<>(sizeTiles.entrySet());
+           Collections.sort(sortedBySize, (o1, o2) -> (o2.getValue()).compareTo(o1.getValue()));
+           for (Map.Entry<String, Long> entry : sortedBySize) {
+               String name = entry.getKey();
+               Long sizeBytes = entry.getValue();
+               Long tileCount = numTiles.get(name);
+
+               System.out.printf("size=%8.2fMB  ", (sizeBytes / (1024.0 * 1024.0)));
+               System.out.printf("#tiles=%5d   ", tileCount);
+               System.out.print("(" + name + ")  ");
+               System.out.println();
+           }
+       }
+
+       private static String getImageComment(RenderedImage image) {
+           if (image instanceof RasterDataNodeOpImage) {
+               RasterDataNodeOpImage rdnoi = (RasterDataNodeOpImage) image;
+               return rdnoi.getRasterDataNode().getName();
+           } else if (image instanceof VirtualBandOpImage) {
+               VirtualBandOpImage vboi = (VirtualBandOpImage) image;
+               return "";//vboi.getExpression();
+           } else if (image instanceof OperatorImage) {
+               final String s = image.toString();
+               final int p1 = s.indexOf('[');
+               final int p2 = s.indexOf(',', p1 + 1);
+               if (p1 > 0 && p2 > p1) {
+                   return s.substring(p1 + 1, p2);
+               }
+               return s;
+           } else {
+               Vector<RenderedImage> sources = image.getSources();
+               return "";
+           }
+       }
+
+       private static void increment(Map<String, Long> numImages, String name, long amount) {
+           Long count = numImages.get(name);
+           if (count == null) {
+               numImages.put(name, amount);
+           } else {
+               numImages.put(name, count.intValue() + amount);
+           }
+       }
 }

@@ -179,6 +179,7 @@ public class GraphProcessor {
                 Dimension tileSize = nodeContextList.get(0).getTargetProduct().getPreferredTileSize();
                 for (int tileY = 0; tileY < numYTiles; tileY++) {
                     for (int tileX = 0; tileX < numXTiles; tileX++) {
+                        System.out.printf("y: %d / %d  x: %d / %d %n", (tileY + 1), numYTiles, (tileX + 1), numXTiles);
                         if (pm.isCanceled()) {
                             // todo - check: throw exception here? (nf, 2010.10.21)
                             return graphContext.getOutputProducts();
