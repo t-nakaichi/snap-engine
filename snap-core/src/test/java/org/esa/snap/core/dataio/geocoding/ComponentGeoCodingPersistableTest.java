@@ -1,6 +1,7 @@
 package org.esa.snap.core.dataio.geocoding;
 
-import org.esa.snap.core.dataio.dimap.spi.DimapPersistable;
+import org.esa.snap.core.dataio.persistable.MarkupLanguageSupport;
+import org.esa.snap.core.dataio.persistable.xml.XmlSupport;
 import org.esa.snap.core.datamodel.Product;
 import org.jdom.Element;
 import org.junit.Before;
@@ -13,7 +14,7 @@ import static org.junit.Assert.*;
 
 public class ComponentGeoCodingPersistableTest {
 
-    private DimapPersistable persistable;
+    private ComponentGeoCodingPersistable persistable;
     private Product product;
 
     private static final String LS = System.lineSeparator();
@@ -27,7 +28,7 @@ public class ComponentGeoCodingPersistableTest {
 
     @Before
     public void setUp() throws Exception {
-        persistable = new ComponentGeoCodingPersistableSpi().createPersistable();
+        persistable = new ComponentGeoCodingPersistable();
         product = createProduct();
     }
 
@@ -109,13 +110,16 @@ public class ComponentGeoCodingPersistableTest {
 
     @Test
     public void testToAndFromXML_withTiePointGrids() {
+        //preparation
         final boolean bilinear = true;
         final boolean antimeridian = true;
         final ComponentGeoCoding initialGeocoding = initializeWithTiePoints(product, bilinear, antimeridian);
         assertThat(initialGeocoding.isCrossingMeridianAt180(), is(true));
 
+        //execution
         final Element xmlFromObject = persistable.createXmlFromObject(initialGeocoding);
 
+        //verification
         assertThat(xmlFromObject, is(notNullValue()));
         assertThat(xmlFromObject.getName(), is(equalTo(TAG_COMPONENT_GEO_CODING)));
         assertThat(xmlFromObject.getAttributes().size(), is(0));
@@ -145,6 +149,7 @@ public class ComponentGeoCodingPersistableTest {
         assertThat(xmlFromObject.getChildTextTrim(TAG_SUBSAMPLING_X), is("5.0"));
         assertThat(xmlFromObject.getChildTextTrim(TAG_SUBSAMPLING_Y), is("5.0"));
 
+        //preparation
         final Element generalGeoCodingElem = new Element("parent");
         generalGeoCodingElem.addContent(xmlFromObject);
 
@@ -152,8 +157,10 @@ public class ComponentGeoCodingPersistableTest {
         product.setSceneGeoCoding(null);
         assertThat(product.getSceneGeoCoding(), is(nullValue()));
 
+        //execution
         final Object objectFromXml = persistable.createObjectFromXml(generalGeoCodingElem, product, null);
 
+        //verification
         assertThat(objectFromXml, is(instanceOf(ComponentGeoCoding.class)));
         final ComponentGeoCoding newGeoCoding = (ComponentGeoCoding) objectFromXml;
         assertNotSame(newGeoCoding, initialGeocoding);
@@ -180,5 +187,49 @@ public class ComponentGeoCodingPersistableTest {
         assertArrayEquals(newGeoRaster.getLongitudes(), initialGeoRaster.getLongitudes(), Double.MIN_VALUE);
         assertNotSame(newGeoRaster.getLatitudes(), initialGeoRaster.getLatitudes());
         assertArrayEquals(newGeoRaster.getLatitudes(), initialGeoRaster.getLatitudes(), Double.MIN_VALUE);
+    }
+
+    @Test
+    public void testToXML_withTiePointGrids() {
+        //preparation
+        final boolean bilinear = true;
+        final boolean antimeridian = true;
+        final ComponentGeoCoding initialGeocoding = initializeWithTiePoints(product, bilinear, antimeridian);
+        assertThat(initialGeocoding.isCrossingMeridianAt180(), is(true));
+
+        final MarkupLanguageSupport mls = new XmlSupport();
+
+        //execution
+        final Element xmlFromObject = persistable.createXmlFromObject_WithMarkupLanguageSupport(initialGeocoding, mls);
+
+        //verification
+        assertThat(xmlFromObject, is(notNullValue()));
+        assertThat(xmlFromObject.getName(), is(equalTo(TAG_COMPONENT_GEO_CODING)));
+        assertThat(xmlFromObject.getAttributes().size(), is(0));
+        assertThat(xmlFromObject.getChildren().size(), is(11));
+
+        assertThat(xmlFromObject.getChild(TAG_FORWARD_CODING_KEY), is(notNullValue()));
+        assertThat(xmlFromObject.getChild(TAG_INVERSE_CODING_KEY), is(notNullValue()));
+        assertThat(xmlFromObject.getChild(TAG_GEO_CHECKS), is(notNullValue()));
+        assertThat(xmlFromObject.getChild(TAG_GEO_CRS), is(notNullValue()));
+        assertThat(xmlFromObject.getChild(TAG_LON_VARIABLE_NAME), is(notNullValue()));
+        assertThat(xmlFromObject.getChild(TAG_LAT_VARIABLE_NAME), is(notNullValue()));
+        assertThat(xmlFromObject.getChild(TAG_RASTER_RESOLUTION_KM), is(notNullValue()));
+        assertThat(xmlFromObject.getChild(TAG_OFFSET_X), is(notNullValue()));
+        assertThat(xmlFromObject.getChild(TAG_OFFSET_Y), is(notNullValue()));
+        assertThat(xmlFromObject.getChild(TAG_SUBSAMPLING_X), is(notNullValue()));
+        assertThat(xmlFromObject.getChild(TAG_SUBSAMPLING_Y), is(notNullValue()));
+
+        assertThat(xmlFromObject.getChildTextTrim(TAG_FORWARD_CODING_KEY), is("FWD_TIE_POINT_BILINEAR"));
+        assertThat(xmlFromObject.getChildTextTrim(TAG_INVERSE_CODING_KEY), is("INV_TIE_POINT"));
+        assertThat(xmlFromObject.getChildTextTrim(TAG_GEO_CHECKS), is("ANTIMERIDIAN"));
+        assertThat(xmlFromObject.getChildTextTrim(TAG_GEO_CRS), is(EXPECTED_GEO_CRS));
+        assertThat(xmlFromObject.getChildTextTrim(TAG_LON_VARIABLE_NAME), is("tpLon"));
+        assertThat(xmlFromObject.getChildTextTrim(TAG_LAT_VARIABLE_NAME), is("tpLat"));
+        assertThat(xmlFromObject.getChildTextTrim(TAG_RASTER_RESOLUTION_KM), is("300.0"));
+        assertThat(xmlFromObject.getChildTextTrim(TAG_OFFSET_X), is("0.5"));
+        assertThat(xmlFromObject.getChildTextTrim(TAG_OFFSET_Y), is("0.5"));
+        assertThat(xmlFromObject.getChildTextTrim(TAG_SUBSAMPLING_X), is("5.0"));
+        assertThat(xmlFromObject.getChildTextTrim(TAG_SUBSAMPLING_Y), is("5.0"));
     }
 }

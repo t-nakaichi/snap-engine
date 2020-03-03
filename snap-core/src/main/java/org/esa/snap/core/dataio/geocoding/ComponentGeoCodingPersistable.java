@@ -1,6 +1,7 @@
 package org.esa.snap.core.dataio.geocoding;
 
 import org.esa.snap.core.dataio.dimap.spi.DimapPersistable;
+import org.esa.snap.core.dataio.persistable.MarkupLanguageSupport;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.RasterDataNode;
 import org.esa.snap.core.datamodel.TiePointGrid;
@@ -102,15 +103,15 @@ public class ComponentGeoCodingPersistable implements DimapPersistable {
         }
 
         if (forwardInvalid
-                || inverseInvalid
-                || geoChecksInvalid
-                || lonVarNameInvalid
-                || latVarNameInvalid
-                || resolutionKmInvalid
-                || resolutionInKm == null
-                || geoChecksName == null
-                || invalidValueGeoChecks
-                || geoCRS == null) {
+            || inverseInvalid
+            || geoChecksInvalid
+            || lonVarNameInvalid
+            || latVarNameInvalid
+            || resolutionKmInvalid
+            || resolutionInKm == null
+            || geoChecksName == null
+            || invalidValueGeoChecks
+            || geoCRS == null) {
             SystemUtils.LOG.warning("Unable to create " + TAG_COMPONENT_GEO_CODING + ".");
             return null;
         }
@@ -229,5 +230,29 @@ public class ComponentGeoCodingPersistable implements DimapPersistable {
         subsamplingYElem.setText(String.valueOf(subsamplingY));
 
         return codingMain;
+    }
+
+    // no public API
+    Element createXmlFromObject_WithMarkupLanguageSupport(Object object, MarkupLanguageSupport mls) {
+        if (!(object instanceof ComponentGeoCoding)) {
+            return null;
+        }
+        final ComponentGeoCoding geoCoding = (ComponentGeoCoding) object;
+        final GeoRaster geoRaster = geoCoding.getGeoRaster();
+
+        final org.esa.snap.core.dataio.persistable.Container<Element> rootContainer = mls.createRootContainer(TAG_COMPONENT_GEO_CODING);
+        rootContainer.add(mls.createProperty(TAG_FORWARD_CODING_KEY, geoCoding.getForwardCoding().getKey()));
+        rootContainer.add(mls.createProperty(TAG_INVERSE_CODING_KEY, geoCoding.getInverseCoding().getKey()));
+        rootContainer.add(mls.createProperty(TAG_GEO_CHECKS, geoCoding.getGeoChecks().name()));
+        rootContainer.add(mls.createProperty(TAG_GEO_CRS, geoCoding.getGeoCRS().toWKT()));
+        rootContainer.add(mls.createProperty(TAG_LON_VARIABLE_NAME, geoRaster.getLonVariableName()));
+        rootContainer.add(mls.createProperty(TAG_LAT_VARIABLE_NAME, geoRaster.getLatVariableName()));
+        rootContainer.add(mls.createProperty(TAG_RASTER_RESOLUTION_KM, String.valueOf(geoRaster.getRasterResolutionInKm())));
+        rootContainer.add(mls.createProperty(TAG_OFFSET_X, String.valueOf(geoRaster.getOffsetX())));
+        rootContainer.add(mls.createProperty(TAG_OFFSET_Y, String.valueOf(geoRaster.getOffsetY())));
+        rootContainer.add(mls.createProperty(TAG_SUBSAMPLING_X, String.valueOf(geoRaster.getSubsamplingX())));
+        rootContainer.add(mls.createProperty(TAG_SUBSAMPLING_Y, String.valueOf(geoRaster.getSubsamplingY())));
+
+        return (Element) mls.getCreated().get(0);
     }
 }

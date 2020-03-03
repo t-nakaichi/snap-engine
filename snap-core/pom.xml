@@ -149,11 +149,11 @@
             <artifactId>junit</artifactId>
             <scope>test</scope>
         </dependency>
-        <!--        <dependency>-->
-        <!--            <groupId>org.hamcrest</groupId>-->
-        <!--            <artifactId>hamcrest-all</artifactId>-->
-        <!--            <scope>test</scope>-->
-        <!--        </dependency>-->
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest-all</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-all</artifactId>
@@ -194,7 +194,7 @@
                         <publicPackage>org.opengis.*</publicPackage>
                         <publicPackage>org.locationtech.jts.*</publicPackage>
                         <publicPackage>Jama</publicPackage>
-						<publicPackage>org.apache.*</publicPackage>
+                        <publicPackage>org.apache.*</publicPackage>
                         <publicPackage>net.coobird.thumbnailator.*</publicPackage>
                         <publicPackage>org.ejml.*</publicPackage>
                         <publicPackage>com.bc.io</publicPackage>
