@@ -4,16 +4,13 @@ import org.esa.snap.core.dataio.persistable.Container;
 import org.esa.snap.core.dataio.persistable.Property;
 import org.jdom.Element;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 class XmlContainer implements Container<Element> {
 
     final Element element;
-    private final HashMap<String, Property<Element>> properties = new HashMap<>();
-    private final HashMap<String, Container<Element>> containers = new HashMap<>();
+    private final Map<String, Property<Element>> properties = new LinkedHashMap<>();
+    private final Map<String, Container<Element>> containers = new LinkedHashMap<>();
 
     XmlContainer(Element element) {
         this.element = element;

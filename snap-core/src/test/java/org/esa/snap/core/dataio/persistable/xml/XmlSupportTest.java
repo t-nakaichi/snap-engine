@@ -1,6 +1,7 @@
 package org.esa.snap.core.dataio.persistable.xml;
 
 import org.esa.snap.core.dataio.persistable.Container;
+import org.esa.snap.core.dataio.persistable.Item;
 import org.esa.snap.core.dataio.persistable.Property;
 import org.esa.snap.core.dataio.persistable.xml.XmlSupport;
 import org.esa.snap.core.dataop.downloadable.XMLSupport;
@@ -143,5 +144,69 @@ public class XmlSupportTest {
         assertThat(numbaByte.getValueInt(), is((int) Byte.MAX_VALUE));
         assertThat(numbaByte.getValueShort(), is((short) Byte.MAX_VALUE));
         assertThat(numbaByte.getValueByte(), is(Byte.MAX_VALUE));
+    }
+
+    @Test
+    public void convert() {
+        //preparation
+        final Element parent = new Element("ParentContainer");
+        parent.addContent(new Element("property_1").setText("some text value").setAttribute(XmlSupport.___UNMODIFIED_NAME___, "  property 1  "));
+        parent.addContent(new Element("property_2").setText("some other text value"));
+        final Element contaier1 = new Element("childContainer1");
+        final Element contaier2 = new Element("childContainer2");
+        parent.addContent(contaier1);
+        parent.addContent(contaier2);
+        contaier1.addContent(new Element("container1Leaf1").setText("leaf text value 1"));
+        contaier1.addContent(new Element("container1Leaf2").setText("leaf text value 2"));
+        contaier2.addContent(new Element("container2Leaf1").setText("leaf text value 3"));
+
+        final Element parent2 = new Element("SecondParentContainer");
+        parent2.addContent(new Element("prop").setText("prop value"));
+
+        final Element singlePropElem = new Element("singleProperty").setText("single prop value");
+
+        //execution
+        final List<Item> converted = new XmlSupport().convert(parent, parent2, singlePropElem);
+
+        //verification
+        assertThat(converted.size(), is(3));
+        assertThat(converted.get(0), is(instanceOf(Container.class)));
+        assertThat(converted.get(1), is(instanceOf(Container.class)));
+        assertThat(converted.get(2), is(instanceOf(Property.class)));
+
+        final Container<Element> cont1 = (Container) converted.get(0);
+        assertThat(cont1.getName(), is("ParentContainer"));
+        assertThat(cont1.getProperties().size(), is(2));
+        assertThat(cont1.getProperty("  property 1  "), is(sameInstance(cont1.getProperties().get(0))));
+        assertThat(cont1.getProperty("  property 1  ").getValueString(), is("some text value"));
+        assertThat(cont1.getProperty("property_2"), is(sameInstance(cont1.getProperties().get(1))));
+        assertThat(cont1.getProperty("property_2").getValueString(), is("some other text value"));
+        assertThat(cont1.getContainer().size(), is(2));
+
+        final Container<Element> chCont1 = cont1.getContainer("childContainer1");
+        assertThat(chCont1.getName(), is("childContainer1"));
+        assertThat(chCont1, is(sameInstance(cont1.getContainer().get(0))));
+        assertThat(chCont1.getProperties().size(), is(2));
+        assertThat(chCont1.getProperty("container1Leaf1"), is(sameInstance(chCont1.getProperties().get(0))));
+        assertThat(chCont1.getProperty("container1Leaf1").getValueString(), is("leaf text value 1"));
+        assertThat(chCont1.getProperty("container1Leaf2"), is(sameInstance(chCont1.getProperties().get(1))));
+        assertThat(chCont1.getProperty("container1Leaf2").getValueString(), is("leaf text value 2"));
+
+        final Container<Element> chCont2 = cont1.getContainer("childContainer2");
+        assertThat(chCont2, is(sameInstance(cont1.getContainer().get(1))));
+        assertThat(chCont2.getProperties().size(), is(1));
+        assertThat(chCont2.getProperty("container2Leaf1"), is(sameInstance(chCont2.getProperties().get(0))));
+        assertThat(chCont2.getProperty("container2Leaf1").getValueString(), is("leaf text value 3"));
+
+        final Container<Element> cont2 = (Container) converted.get(1);
+        assertThat(cont2.getName(), is("SecondParentContainer"));
+        assertThat(cont2.getProperties().size(), is(1));
+        assertThat(cont2.getProperties().get(0).getName(), is("prop"));
+        assertThat(cont2.getProperties().get(0).getValueString(), is("prop value"));
+        assertThat(cont2.getContainer().size(), is(0));
+
+        final Property singleProp = (Property) converted.get(2);
+        assertThat(singleProp.getName(), is("singleProperty"));
+        assertThat(singleProp.getValueString(), is("single prop value"));
     }
 }

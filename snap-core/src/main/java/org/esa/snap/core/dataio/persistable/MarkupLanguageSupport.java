@@ -9,7 +9,7 @@ public interface MarkupLanguageSupport<T> {
 
     List<T> getCreated();
 
-    List<Item> convert(T o);
+    List<Item> convert(T... o);
 
     Property<T> createProperty(String name, Object value);
 

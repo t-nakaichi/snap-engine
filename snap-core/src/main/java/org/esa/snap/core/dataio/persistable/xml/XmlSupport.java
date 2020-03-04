@@ -28,8 +28,16 @@ public class XmlSupport implements MarkupLanguageSupport<Element> {
     }
 
     @Override
-    public List<Item> convert(Element o) {
-        return null;
+    public List<Item> convert(Element... o) {
+        final ArrayList<Item> items = new ArrayList<>();
+        for (Element element : o) {
+            if (element.getChildren().size() == 0) {
+                items.add(new XmlProperty(element));
+            } else {
+                items.add(new XmlContainer(element));
+            }
+        }
+        return items;
     }
 
     @Override

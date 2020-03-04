@@ -29,7 +29,7 @@ public class JsonSupport implements MarkupLanguageSupport<Map<String, Object>> {
     }
 
     @Override
-    public List<Item> convert(Map<String, Object> o) {
+    public List<Item> convert(Map<String, Object>... o) {
         return null;
     }
 
