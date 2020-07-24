@@ -91,8 +91,7 @@ public class PixelGeoCoding extends AbstractGeoCoding implements BasicPixelGeoCo
 
     private static final int MAX_SEARCH_CYCLES = 10;
 
-    // TODO - (nf) make EPS for quad-tree search dependent on current scene
-    private static final double EPS = 0.04; // used by quad-tree search
+    private  double EPS = 0.04; // used by quad-tree search
     private static final boolean TRACE = false;
     private static final double D2R = Math.PI / 180.0;
     private final Band latBand;
@@ -613,11 +612,16 @@ public class PixelGeoCoding extends AbstractGeoCoding implements BasicPixelGeoCo
         }
         final int x0 = (int) Math.floor(pixelPos.x);
         final int y0 = (int) Math.floor(pixelPos.y);
-        if (x0 >= 0 && x0 < rasterWidth && y0 >= 0 && y0 < rasterHeight) {
+        // allow estimator to be wrong at most searchRadius pixels to decide whether we are outside, mb, 2020-04-30
+        if (x0 >= 0-searchRadius && x0 < rasterWidth+searchRadius && y0 >= 0-searchRadius && y0 < rasterHeight+searchRadius) {
             final double lat0 = geoPos.lat;
             final double lon0 = geoPos.lon;
 
-            pixelPos.setLocation(x0, y0);
+            // abuse pixelPos as container for array indices instead of fractional pixel positions
+            // move it inside image in case it isn't, to find the nearest pixel
+            pixelPos.setLocation(Math.max(Math.min(x0, rasterWidth-1), 0),
+                                 Math.max(Math.min(y0, rasterHeight-1), 0));
+
             int y1;
             int x1;
             double minDelta;
@@ -630,6 +634,7 @@ public class PixelGeoCoding extends AbstractGeoCoding implements BasicPixelGeoCo
             while (++cycles < MAX_SEARCH_CYCLES && (x1 != (int) pixelPos.x || y1 != (int) pixelPos.y) && bestPixelIsOnSearchBorder(
                     x1, y1, pixelPos));
             if (Math.sqrt(minDelta) < deltaThreshold) {
+                // revert abuse and shift back pixelPos to the middle of the pixel
                 pixelPos.setLocation(pixelPos.x + 0.5f, pixelPos.y + 0.5f);
             } else {
                 pixelPos.setInvalid();
@@ -765,11 +770,48 @@ public class PixelGeoCoding extends AbstractGeoCoding implements BasicPixelGeoCo
         if (!initialized) {
             try {
                 initData(latBand, lonBand, validMaskExpression, ProgressMonitor.NULL);
+                setEpsilon();
             } catch (IOException e) {
                 throw new IllegalStateException("Unable to initialise data for pixel geo-coding", e);
             }
             initialized = true;
         }
+    }
+
+    private void setEpsilon() {
+        int x_center = rasterWidth / 2 - 1;
+        x_center = x_center < 0 ? 0 : x_center;
+
+        int y_center = rasterHeight / 2 - 1;
+        y_center = y_center < 0 ? 0 : y_center;
+
+        int d_x_1 = 0;
+        int d_y_1 = 0;
+        int d_x_2 = 0;
+        int d_y_2 = 0;
+        double div = 1.0 / Math.sqrt(2);
+
+        if (rasterWidth < 2) {
+            div = 1.0;
+        } else {
+            d_x_2 = 1;
+        }
+
+        if (rasterHeight < 2) {
+            div = 1.0;
+        } else {
+            d_y_2 = 1;
+        }
+
+        final GeoPos geoPos_1 = new GeoPos();
+        final GeoPos geoPos_2 = new GeoPos();
+        getGeoPosInternal(x_center + d_x_1, y_center + d_y_1, geoPos_1);
+        getGeoPosInternal(x_center + d_x_2, y_center + d_y_2, geoPos_2);
+
+        final double deltaLat = Math.abs(geoPos_1.lat - geoPos_2.lat);
+        final double deltaLon = Math.abs((geoPos_1.lon - geoPos_2.lon + 540.0) % 360.0 - 180.0);
+
+        EPS = Math.max(deltaLat, deltaLon) * div;
     }
 
     /**
