@@ -355,14 +355,14 @@ public class ImageInfo implements Cloneable {
         }
     }
 
-    public void setColorPaletteDefInvert(ColorPaletteDef colorPaletteDef) {
-        transferPointsInvert(colorPaletteDef, getColorPaletteDef());
+    public void setColorPaletteDefInvert(ColorPaletteDef colorPaletteDef, double min, double max) {
+        transferPointsInvert(colorPaletteDef, min, max, getColorPaletteDef());
     }
 
-    private static void transferPointsInvert(ColorPaletteDef sourceCPD, ColorPaletteDef targetCPD) {
+    private static void transferPointsInvert(ColorPaletteDef sourceCPD, double min, double max, ColorPaletteDef targetCPD) {
 
-        targetCPD.setSourceFileMin(sourceCPD.getSourceFileMin());
-        targetCPD.setSourceFileMax(sourceCPD.getSourceFileMax());
+        targetCPD.setSourceFileMin(min);
+        targetCPD.setSourceFileMax(max);
 
         alignNumPoints(sourceCPD, targetCPD);
 
