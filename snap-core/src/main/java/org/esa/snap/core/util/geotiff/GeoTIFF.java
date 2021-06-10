@@ -17,6 +17,7 @@ package org.esa.snap.core.util.geotiff;
 
 import com.sun.media.imageio.plugins.tiff.BaselineTIFFTagSet;
 import com.sun.media.imageio.plugins.tiff.GeoTIFFTagSet;
+import it.geosolutions.imageio.plugins.tiff.TIFFImageWriteParam;
 import org.esa.snap.core.util.Debug;
 import org.esa.snap.core.util.StringUtils;
 import org.jdom.Document;
@@ -30,6 +31,7 @@ import javax.imageio.IIOException;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageTypeSpecifier;
+import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.metadata.IIOInvalidTreeException;
 import javax.imageio.metadata.IIOMetadata;
@@ -37,6 +39,7 @@ import javax.imageio.stream.ImageOutputStream;
 import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.Locale;
 
 public class GeoTIFF {
 
@@ -47,9 +50,7 @@ public class GeoTIFF {
      * @param image           a <code>RenderedImage</code> to be written. name of the format.
      * @param outputFile      a <code>File</code> to be written to.
      * @param geoTIFFMetadata the GeoTIFF specific metadata
-     *
      * @return <code>false</code> if no appropriate image I/O writer was found.
-     *
      * @throws IllegalArgumentException if any parameter is <code>null</code>.
      * @throws java.io.IOException      if an error occurs during writing.
      */
@@ -90,9 +91,7 @@ public class GeoTIFF {
      * @param image           a <code>RenderedImage</code> to be written.
      * @param outputStream    an <code>ImageOutputStream</code> to be written to.
      * @param geoTIFFMetadata the GeoTIFF specific metadata
-     *
      * @return <code>false</code> if no appropriate writer is found.
-     *
      * @throws IllegalArgumentException if any parameter is <code>null</code>.
      * @throws java.io.IOException      if an error occurs during writing.
      */
@@ -113,18 +112,23 @@ public class GeoTIFF {
         }
 
         writer.setOutput(outputStream);
-        writer.write(createIIOImage(writer, image, geoTIFFMetadata));
+        writer.write(null, createIIOImage(writer, image, geoTIFFMetadata), createWriteParameter());
         outputStream.flush();
         writer.dispose();
 
         return true;
     }
 
+    private static ImageWriteParam createWriteParameter() {
+        TIFFImageWriteParam writeParam = new TIFFImageWriteParam(Locale.ENGLISH);
+        writeParam.setForceToBigTIFF(true);
+        return writeParam;
+    }
+
     /**
      * Gets an image writer suitable to be used for GeoTIFF.
      *
      * @param image the image to be written later
-     *
      * @return a suitable image writer, or <code>null</code> if no writer is found
      */
     public static ImageWriter getImageWriter(RenderedImage image) {
@@ -135,7 +139,6 @@ public class GeoTIFF {
      * Gets an image writer suitable to be used for GeoTIFF.
      *
      * @param imageType the type of the image to be written later
-     *
      * @return a suitable image writer, or <code>null</code> if no writer is found
      */
     public static ImageWriter getImageWriter(ImageTypeSpecifier imageType) {
@@ -150,9 +153,7 @@ public class GeoTIFF {
      * @param writer          the image writer, must not be null
      * @param im              the image, must not be null
      * @param geoTIFFMetadata the GeoTIFF metadata, must not be null
-     *
      * @return the IIO image, never null
-     *
      * @throws IIOException if the metadata cannot be created
      */
     public static IIOImage createIIOImage(ImageWriter writer, RenderedImage im, GeoTIFFMetadata geoTIFFMetadata) throws IIOException {
