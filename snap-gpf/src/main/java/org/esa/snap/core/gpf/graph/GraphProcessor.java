@@ -61,7 +61,6 @@ public class GraphProcessor {
     private Logger logger;
     private volatile OperatorException error = null;
 
-
     /**
      * Creates a new instance og {@code GraphProcessor}.
      */
@@ -163,8 +162,8 @@ public class GraphProcessor {
 
         List<Dimension> dimList = new ArrayList<>(tileDimMap.keySet());
         dimList.sort((d1, d2) -> {
-            Long area1 = (long) (d1.width) * (long)(d1.height);
-            Long area2 = (long) (d2.width) * (long)(d2.height);
+            Long area1 = (long) (d1.width) * (long) (d1.height);
+            Long area2 = (long) (d2.width) * (long) (d2.height);
             return area1.compareTo(area2);
         });
 
@@ -199,6 +198,8 @@ public class GraphProcessor {
                 outputNodeContext.getOperator().execute(SubProgressMonitor.create(pm, 1));
             }
             pm.setTaskName("Computing raster data...");
+            List<TileRequest> requestList = new ArrayList<>();
+
             for (Dimension dimension : dimList) {
                 List<NodeContext> nodeContextList = tileDimMap.get(dimension);
                 final int numXTiles = dimension.width;
@@ -265,17 +266,23 @@ public class GraphProcessor {
                                                                             tileY * tileSize.height,
                                                                             tileSize.width,
                                                                             tileSize.height);
+//                                    System.out.printf("Fire Tile[%d,%d] start - %s%n", tileX, tileY, tileRectangle);
                                     fireTileStarted(graphContext, tileRectangle);
 
                                     // Simply pull tile from source images of regular bands.
                                     //
                                     if (image != null) {
-                                        forceTileComputation(image, tileX, tileY, semaphore, tileScheduler, listeners,
-                                                             parallelism);
+                                        //                                        System.out.println("Computing on target image");
+                                        requestList.add(forceTileComputation(image, tileX, tileY, semaphore, tileScheduler, listeners,
+                                                                             parallelism));
+
                                     } else if (OperatorContext.isRegularBand(band) && band.isSourceImageSet()) {
-                                        forceTileComputation(band.getSourceImage(), tileX, tileY, semaphore,
-                                                             tileScheduler, listeners, parallelism);
+                                        //                                        System.out.println("Computing on source image");
+                                        requestList.add(forceTileComputation(band.getSourceImage(), tileX, tileY, semaphore,
+                                                                             tileScheduler, listeners, parallelism));
+
                                     }
+//                                    System.out.printf("Fire Tile[%d,%d] stop - %s%n", tileX, tileY, tileRectangle);
                                     fireTileStopped(graphContext, tileRectangle);
                                     if (monitorProgress) {
                                         pm.worked(1);
@@ -290,8 +297,14 @@ public class GraphProcessor {
                     }
                 }
             }
+            System.out.println("Final acquire of permits!");
+            System.out.printf("avail. permits: % d%n", semaphore.availablePermits());
+            System.out.printf("acqui. num permits: %d%n", parallelism);
 
             awaitAllPermits(semaphore, parallelism);
+//            acquirePermitsFinal(semaphore, parallelism, requestList);
+            System.out.println("Final permits acquired!");
+
             if (error != null) {
                 throw error;
             }
@@ -320,11 +333,11 @@ public class GraphProcessor {
         return tileSizeMap;
     }
 
-    private void forceTileComputation(PlanarImage image, int tileX, int tileY, Semaphore semaphore,
-                                      TileScheduler tileScheduler, TileComputationListener[] listeners,
-                                      int parallelism) {
+    private TileRequest forceTileComputation(PlanarImage image, int tileX, int tileY, Semaphore semaphore,
+                                             TileScheduler tileScheduler, TileComputationListener[] listeners,
+                                             int parallelism) {
         Point[] points = new Point[]{new Point(tileX, tileY)};
-        acquirePermit(semaphore);
+        acquirePermits(semaphore, 1);
         if (error != null) {
             semaphore.release(parallelism);
             throw error;
@@ -333,27 +346,48 @@ public class GraphProcessor {
         //
         // Note: GPF pull-processing is triggered here!!!
         //
-        tileScheduler.scheduleTiles(image, points, listeners);
+        return tileScheduler.scheduleTiles(image, points, listeners);
         //
         /////////////////////////////////////////////////////////////////////
     }
 
-    private static void acquirePermit(Semaphore semaphore) {
+    private static void acquirePermits(Semaphore semaphore, int permits) {
         try {
-            semaphore.acquire(1);
+            semaphore.acquire(permits);
         } catch (InterruptedException e) {
             throw new OperatorException(e);
         }
     }
 
+    private static void acquirePermitsFinal(Semaphore semaphore, int permits, List<TileRequest> requestList) {
+        System.out.println("ReqList:");
+        for (TileRequest tileRequest : requestList) {
+            final Point tileIndex = tileRequest.getTileIndices()[0];
+            final int status = tileRequest.getTileStatus(tileIndex.x, tileIndex.y);
+            System.out.printf("TileStatus: %s, %d%n", tileIndex, status);
+
+        }
+        acquirePermits(semaphore, permits);
+    }
+
+
     private static void awaitAllPermits(Semaphore semaphore, int permits) {
         // This way of acquiring permits is a workaround for issue SNAP-1479
         // https://senbox.atlassian.net/browse/SNAP-1479
         try {
-            final boolean allAcquired = semaphore.tryAcquire(permits, 1, TimeUnit.SECONDS);
-            if (!allAcquired) {
-                Thread.sleep(200);
-            }
+            System.out.printf("Awaiting all [%d] permits%n", permits);
+            System.out.printf("[%d] are available%n", semaphore.availablePermits());
+            boolean allAcquired;
+            do {
+                allAcquired = semaphore.tryAcquire(permits, 1, TimeUnit.SECONDS);
+                if (!allAcquired) {
+                    System.out.printf("[%d] are available%n", semaphore.availablePermits());
+                    Thread.sleep(200);
+                } else {
+                    // if acquired, release them again.
+                    semaphore.release(permits);
+                }
+            } while (!allAcquired);
         } catch (InterruptedException e) {
             throw new OperatorException(e);
         }
@@ -399,6 +433,7 @@ public class GraphProcessor {
                                  int tileY,
                                  Raster raster) {
             semaphore.release();
+            System.out.printf("Release Tile[%d,%d] - %s%n", tileX, tileY, image);
         }
 
         @Override
