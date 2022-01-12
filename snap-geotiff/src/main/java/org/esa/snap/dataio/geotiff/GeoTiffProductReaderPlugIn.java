@@ -15,7 +15,6 @@
  */
 package org.esa.snap.dataio.geotiff;
 
-import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReader;
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
@@ -148,7 +147,11 @@ public class GeoTiffProductReaderPlugIn implements ProductReaderPlugIn {
 
     private static boolean isImageReaderAvailable(ImageInputStream stream) throws Exception {
         Iterator<ImageReader> imageReaders = ImageIO.getImageReaders(stream);
-        while (imageReaders.hasNext()) {
+        return imageReaders.hasNext();
+        // 2022-01-12 CC Removed COG check
+        // If the file is a COG and GDAL reader is not available, this reader will still be SUITABLE.
+        // If the file is a COG and GDAL reader is available, that reader will be INTENDED
+        /*while (imageReaders.hasNext()) {
             final ImageReader reader = imageReaders.next();
             if (reader instanceof TIFFImageReader) {
                 // 2020-07-21 CC Added COG check
@@ -157,7 +160,7 @@ public class GeoTiffProductReaderPlugIn implements ProductReaderPlugIn {
                 return !Utils.isCOGGeoTIFF(tiffImageReader);
             }
         }
-        return false;
+        return false;*/
     }
 
     @Override
